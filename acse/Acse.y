@@ -448,6 +448,7 @@ for_statement : FOR
                   gen_bt_instruction(program, $1.label_epilogue, 0);
                   assignLabel($1.label_end);
                }
+;
 
 return_statement : RETURN
             {
