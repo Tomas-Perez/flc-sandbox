@@ -1,0 +1,9 @@
+*.ini
+*.o
+*.asm
+*.d
+*.tab.c
+*.tab.h
+build
+bin
+lex.yy.c
