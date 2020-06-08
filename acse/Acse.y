@@ -447,6 +447,8 @@ for_statement : FOR
                exp SEMI 
                {
                   $1.label_end = newLabel(program);
+                  breakable_stack = addFirst(breakable_stack, $1.label_end);
+
                   $1.label_code = newLabel(program);
 
                   if ($7.expression_type == IMMEDIATE)
@@ -468,6 +470,7 @@ for_statement : FOR
                {
                   gen_bt_instruction(program, $1.label_epilogue, 0);
                   assignLabel(program, $1.label_end);
+                  breakable_stack = removeFirst(breakable_stack);
                }
 ;
 
