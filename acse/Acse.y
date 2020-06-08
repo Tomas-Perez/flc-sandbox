@@ -121,7 +121,6 @@ extern int yyerror(const char* errmsg);
 %token ASSIGN LT GT SHL_OP SHR_OP EQ NOTEQ LTEQ GTEQ
 %token ANDAND OROR
 %token COMMA
-%token FOR
 %token RETURN
 %token READ
 %token WRITE
