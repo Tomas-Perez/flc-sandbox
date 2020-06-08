@@ -7,3 +7,5 @@
 build
 bin
 lex.yy.c
+*.cfg
+*.out

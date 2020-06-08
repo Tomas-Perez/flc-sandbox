@@ -89,6 +89,7 @@ t_reg_allocator *RA;       /* Register allocator. It implements the "Linear scan
 
 t_io_infos *file_infos;    /* input and output files used by the compiler */
 
+t_list *breakable_stack;
 
 extern int yylex(void);
 extern int yyerror(const char* errmsg);
@@ -124,6 +125,7 @@ extern int yyerror(const char* errmsg);
 %token RETURN
 %token READ
 %token WRITE
+%token BREAK
 
 %token <label> DO
 %token <while_stmt> WHILE
@@ -253,6 +255,7 @@ control_statement : if_statement         { /* does nothing */ }
             | while_statement            { /* does nothing */ }
             | do_while_statement SEMI    { /* does nothing */ }
             | return_statement SEMI      { /* does nothing */ }
+            | break_statement SEMI       { /* does nothing */ }
 ;
 
 read_write_statement : read_statement  { /* does nothing */ }
@@ -374,6 +377,7 @@ while_statement  : WHILE
                       * to the first instruction after the while code
                       * block */
                      $1.label_end = newLabel(program);
+                     breakable_stack = addFirst(breakable_stack, $1.label_end);
 
                      /* if `exp' returns FALSE, jump to the label $1.label_end */
                      gen_beq_instruction (program, $1.label_end, 0);
@@ -386,6 +390,8 @@ while_statement  : WHILE
 
                      /* fix the label `label_end' */
                      assignLabel(program, $1.label_end);
+
+                     breakable_stack = removeFirst(breakable_stack);
                   }
 ;
                   
@@ -409,6 +415,16 @@ do_while_statement  : DO
                            /* if `exp' returns TRUE, jump to the label $1 */
                            gen_bne_instruction (program, $1, 0);
                      }
+;
+
+break_statement : BREAK 
+            {
+               if (breakable_stack==NULL) {
+                  fprintf(stderr, "Unexpected break at line %d\n", line_num);
+                  abort();
+               }
+               gen_bt_instruction(program, LDATA(breakable_stack), 0);
+            }
 ;
 
 return_statement : RETURN
