@@ -121,6 +121,17 @@ typedef struct t_do_while_statement
    t_axe_label *label_end;
 } t_do_while_statement;
 
+typedef struct t_for_statement
+{
+   t_axe_label *label_expression; /* label to expression that is used as loop condition */
+
+   t_axe_label *label_epilogue;  /* label to epilogue, executed after each iteration */
+
+   t_axe_label *label_code; /* label to body of loop */
+
+   t_axe_label *label_end; /* exit loop label */
+} t_for_statement;
+
 /* create a label */
 extern t_axe_label * alloc_label(int value);
 
@@ -132,6 +143,8 @@ extern t_while_statement create_while_statement();
 
 /* create an instance that will mantain infos about a do while statement */
 extern t_do_while_statement create_do_while_statement();
+
+extern t_for_statement create_for_statement();
 
 /* create an instance of `t_axe_register' */
 extern t_axe_register * alloc_register(int ID, int indirect);

@@ -20,6 +20,18 @@ t_axe_expression create_expression (int value, int type)
    return expression;
 }
 
+/* create for loop */
+t_for_statement create_for_statement() {
+   t_for_statement statement;
+
+   statement.label_code = NULL;
+   statement.label_end = NULL;
+   statement.label_epilogue = NULL;
+   statement.label_expression = NULL;
+
+   return statement;
+}
+
 /* create and initialize an instance of `t_axe_register' */
 t_axe_register * alloc_register(int ID, int indirect)
 {

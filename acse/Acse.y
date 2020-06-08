@@ -110,6 +110,7 @@ extern int yyerror(const char* errmsg);
    t_axe_label *label;
    t_while_statement while_stmt;
    t_do_while_statement do_stmt;
+   t_for_statement for_stmt;
 } 
 /*=========================================================================
                                TOKENS 
@@ -122,7 +123,6 @@ extern int yyerror(const char* errmsg);
 %token ASSIGN LT GT SHL_OP SHR_OP EQ NOTEQ LTEQ GTEQ
 %token ANDAND OROR
 %token COMMA
-%token FOR
 %token RETURN
 %token READ
 %token WRITE
@@ -130,6 +130,7 @@ extern int yyerror(const char* errmsg);
 
 %token <do_stmt> DO
 %token <while_stmt> WHILE
+%token <for_stmt> FOR
 %token <label> IF
 %token <label> ELSE
 %token <intval> TYPE
@@ -254,6 +255,7 @@ statement   : assign_statement SEMI      { /* does nothing */ }
 
 control_statement : if_statement         { /* does nothing */ }
             | while_statement            { /* does nothing */ }
+            | for_statement              { /* does nothing */ }
             | do_while_statement SEMI    { /* does nothing */ }
             | return_statement SEMI      { /* does nothing */ }
             | break_statement SEMI       { /* does nothing */ }
@@ -312,6 +314,9 @@ assign_statement : IDENTIFIER LSQUARE exp RSQUARE ASSIGN exp
                free($1);
             }
 ;
+
+assign_list : assign_list COMMA assign_statement 
+            | assign_statement
             
 if_statement   : if_stmt
                {
@@ -431,6 +436,39 @@ break_statement : BREAK
                }
                gen_bt_instruction(program, LDATA(breakable_stack), 0);
             }
+;
+
+for_statement : FOR 
+               { $1 = create_for_statement(); }
+               LPAR assign_list SEMI 
+               {
+                  $1.label_expression = assignNewLabel(program);
+               }
+               exp SEMI 
+               {
+                  $1.label_end = newLabel(program);
+                  $1.label_code = newLabel(program);
+
+                  if ($7.expression_type == IMMEDIATE)
+                     gen_load_immediate(program, $7.value);
+                  else
+                     gen_andb_instruction(program, $7.value, $7.value, $7.value, CG_DIRECT_ALL);
+
+                  gen_beq_instruction(program, $1.label_end, 0);
+                  gen_bt_instruction(program, $1.label_code, 0);
+
+                  $1.label_epilogue = assignNewLabel(program);
+               }
+               assign_list RPAR 
+               {
+                  gen_bt_instruction(program, $1.label_expression, 0);
+                  assignLabel(program, $1.label_code);
+               }
+               code_block 
+               {
+                  gen_bt_instruction(program, $1.label_epilogue, 0);
+                  assignLabel(program, $1.label_end);
+               }
 ;
 
 return_statement : RETURN
