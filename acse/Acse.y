@@ -109,6 +109,7 @@ extern int yyerror(const char* errmsg);
    t_list *list;
    t_axe_label *label;
    t_while_statement while_stmt;
+   t_do_while_statement do_stmt;
 } 
 /*=========================================================================
                                TOKENS 
@@ -127,7 +128,7 @@ extern int yyerror(const char* errmsg);
 %token WRITE
 %token BREAK
 
-%token <label> DO
+%token <do_stmt> DO
 %token <while_stmt> WHILE
 %token <label> IF
 %token <label> ELSE
@@ -397,12 +398,14 @@ while_statement  : WHILE
                   
 do_while_statement  : DO
                      {
+                        $1 = create_do_while_statement();
+                        
                         /* the label that points to the address where to jump if
                          * `exp' is not verified */
-                        $1 = newLabel(program);
-                        
-                        /* fix the label */
-                        assignLabel(program, $1);
+                        $1.label_code = assignNewLabel(program);
+
+                        $1.label_end = newLabel(program);
+                        breakable_stack = addFirst(breakable_stack, $1.label_end);
                      }
                      code_block WHILE LPAR exp RPAR
                      {
@@ -413,7 +416,10 @@ do_while_statement  : DO
                                    $6.value, $6.value, CG_DIRECT_ALL);
 
                            /* if `exp' returns TRUE, jump to the label $1 */
-                           gen_bne_instruction (program, $1, 0);
+                           gen_bne_instruction (program, $1.label_code, 0);
+
+                           assignLabel(program, $1.label_end);
+                           breakable_stack = removeFirst(breakable_stack);
                      }
 ;
 

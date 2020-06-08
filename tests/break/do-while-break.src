@@ -1,0 +1,28 @@
+int i, j;
+
+i = 0;
+
+do {
+    write(i);
+    i = i + 1;
+    if(i > 5) {
+        break;
+    }
+} while(i<10);
+
+write(9999); /* Separator between tests */
+
+i = 0;
+
+do {
+    write(1111); /* Separator between loops */
+    j = 0;
+    do {
+        if (j > i) {
+            break;
+        }
+        write(j);
+        j = j + 1;
+    } while(j < 10);
+    i = i + 1;
+} while(i < 3);
