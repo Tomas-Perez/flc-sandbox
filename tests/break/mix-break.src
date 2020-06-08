@@ -1,0 +1,14 @@
+int i, j;
+i = 0;
+while(i < 3) {
+    write(i);
+    write(1111);
+    for(j = 0; j < i; j = j + 1) {
+        write(j);
+        if (j == 1) {
+            break;
+        }
+    }
+    i = i + 1;
+    write(9999);
+}
