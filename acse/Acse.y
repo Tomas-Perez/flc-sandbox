@@ -428,10 +428,10 @@ for_statement : FOR
                   $1.label_end = newLabel(program);
                   $1.label_code = newLabel(program);
 
-                  if ($6.expression_type == IMMEDIATE)
-                     gen_load_immediate(program, $6.value);
+                  if ($7.expression_type == IMMEDIATE)
+                     gen_load_immediate(program, $7.value);
                   else
-                     gen_andb_instruction(program, $6.value, $6.value, $6.value, CG_DIRECT_ALL);
+                     gen_andb_instruction(program, $7.value, $7.value, $7.value, CG_DIRECT_ALL);
 
                   gen_beq_instruction(program, $1.label_end, 0);
                   gen_bt_instruction(program, $1.label_code, 0);
