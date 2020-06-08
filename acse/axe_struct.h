@@ -114,6 +114,17 @@ typedef struct t_while_statement
                                     * that follows the while construct */
 } t_while_statement;
 
+typedef struct t_for_statement
+{
+   t_axe_label *label_expression; /* label to expression that is used as loop condition */
+
+   t_axe_label *label_epilogue;  /* label to epilogue, executed after each iteration */
+
+   t_axe_label *label_code; /* label to body of loop */
+
+   t_axe_label *label_end; /* exit loop label */
+} t_for_statement;
+
 /* create a label */
 extern t_axe_label * alloc_label(int value);
 
@@ -122,6 +133,8 @@ extern t_axe_expression create_expression (int value, int type);
 
 /* create an instance that will mantain infos about a while statement */
 extern t_while_statement create_while_statement();
+
+extern t_for_statement create_for_statement();
 
 /* create an instance of `t_axe_register' */
 extern t_axe_register * alloc_register(int ID, int indirect);
