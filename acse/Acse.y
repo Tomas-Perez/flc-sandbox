@@ -441,12 +441,12 @@ for_statement : FOR
                assign_list RPAR 
                {
                   gen_bt_instruction(program, $1.label_expression, 0);
-                  assignLabel($1.label_code);
+                  assignLabel(program, $1.label_code);
                }
                code_block 
                {
                   gen_bt_instruction(program, $1.label_epilogue, 0);
-                  assignLabel($1.label_end);
+                  assignLabel(program, $1.label_end);
                }
 ;
 
