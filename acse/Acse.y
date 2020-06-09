@@ -117,7 +117,7 @@ extern int yyerror(const char* errmsg);
 %token LBRACE RBRACE LPAR RPAR LSQUARE RSQUARE
 %token SEMI COLON PLUS MINUS MUL_OP DIV_OP MOD_OP
 %token AND_OP OR_OP NOT_OP
-%token ASSIGN LT GT SHL_OP SHR_OP EQ NOTEQ LTEQ GTEQ
+%token ASSIGN LT GT SHL_OP SHR_OP EQ NOTEQ LTEQ GTEQ PLUS_ASSIGN
 %token ANDAND OROR
 %token COMMA
 %token FOR
@@ -144,6 +144,7 @@ extern int yyerror(const char* errmsg);
 
 %left COMMA
 %left ASSIGN
+%left PLUS_ASSIGN
 %left OROR
 %left ANDAND
 %left OR_OP
@@ -305,6 +306,18 @@ assign_statement : IDENTIFIER LSQUARE exp RSQUARE ASSIGN exp
                                       CG_DIRECT_ALL);
 
                /* free the memory associated with the IDENTIFIER */
+               free($1);
+            }
+            | IDENTIFIER PLUS_ASSIGN exp
+            {
+               int location = get_symbol_location(program, $1, 0);
+
+               if ($3.expression_type == IMMEDIATE) {
+                  gen_addi_instruction(program, location, location, $3.value);
+               } else {
+                  gen_add_instruction(program, location, location, $3.value, CG_DIRECT_ALL);
+               }
+
                free($1);
             }
 ;

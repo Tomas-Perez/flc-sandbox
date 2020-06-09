@@ -80,6 +80,7 @@ ID       [a-zA-Z_][a-zA-Z0-9_]*
 ">"               { return GT; }
 "<<"              { return SHL_OP; }
 ">>"              { return SHR_OP; }
+"+="              { return PLUS_ASSIGN; }
 "=="              { return EQ; }
 "!="              { return NOTEQ; }
 "<="              { return LTEQ; }

@@ -1,0 +1,19 @@
+int i, j;
+
+i = 0;
+
+write(i);
+
+i += 1;
+
+write(i);
+
+j = 5;
+
+i += j;
+
+write(i);
+
+i += j * 2;
+
+write(i);
