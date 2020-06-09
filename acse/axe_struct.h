@@ -14,6 +14,7 @@
 #include <stdio.h>
 #include <assert.h>
 #include "axe_constants.h"
+#include "collections.h"
 
 #ifndef _AXE_ALLOC_FUNCTION
 #  define _AXE_ALLOC_FUNCTION malloc
@@ -132,6 +133,27 @@ typedef struct t_for_statement
    t_axe_label *label_end; /* exit loop label */
 } t_for_statement;
 
+typedef struct t_switch_statement
+{
+   int cmp_register;
+
+   t_list *cases;
+
+   t_axe_label *label_test;
+
+   t_axe_label *label_end;
+
+   t_axe_label *label_default;
+} t_switch_statement;
+
+typedef struct t_case_statement
+{
+   int number;
+
+   t_axe_label *case_label;
+} t_case_statement;
+
+
 /* create a label */
 extern t_axe_label * alloc_label(int value);
 
@@ -145,6 +167,10 @@ extern t_while_statement create_while_statement();
 extern t_do_while_statement create_do_while_statement();
 
 extern t_for_statement create_for_statement();
+
+extern t_switch_statement *create_switch_statement();
+
+extern t_case_statement *create_case_statement();
 
 /* create an instance of `t_axe_register' */
 extern t_axe_register * alloc_register(int ID, int indirect);
