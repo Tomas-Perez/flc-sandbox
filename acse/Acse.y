@@ -89,6 +89,7 @@ t_reg_allocator *RA;       /* Register allocator. It implements the "Linear scan
 
 t_io_infos *file_infos;    /* input and output files used by the compiler */
 
+t_list *switch_stack = NULL;
 
 extern int yylex(void);
 extern int yyerror(const char* errmsg);
@@ -108,6 +109,8 @@ extern int yyerror(const char* errmsg);
    t_list *list;
    t_axe_label *label;
    t_while_statement while_stmt;
+   t_switch_statement *switch_stmt;
+   t_case_statement *case_stmt;
 } 
 /*=========================================================================
                                TOKENS 
@@ -124,6 +127,8 @@ extern int yyerror(const char* errmsg);
 %token RETURN
 %token READ
 %token WRITE
+%token BREAK
+%token DEFAULT
 
 %token <label> DO
 %token <while_stmt> WHILE
@@ -132,6 +137,8 @@ extern int yyerror(const char* errmsg);
 %token <intval> TYPE
 %token <svalue> IDENTIFIER
 %token <intval> NUMBER
+%token <switch_stmt> SWITCH
+%token <case_stmt> CASE
 
 %type <expr> exp
 %type <decl> declaration
@@ -251,8 +258,10 @@ statement   : assign_statement SEMI      { /* does nothing */ }
 
 control_statement : if_statement         { /* does nothing */ }
             | while_statement            { /* does nothing */ }
+            | switch_statement           { /* does nothing */ }
             | do_while_statement SEMI    { /* does nothing */ }
             | return_statement SEMI      { /* does nothing */ }
+            | break_statement SEMI       { /* does nothing */ }
 ;
 
 read_write_statement : read_statement  { /* does nothing */ }
@@ -455,6 +464,84 @@ write_statement : WRITE LPAR exp RPAR
                /* write to standard output an integer value */
                gen_write_instruction (program, location);
             }
+;
+
+switch_statement : SWITCH 
+                  {
+                     $1 = create_switch_statement();
+                     $1->cmp_register = getNewRegister(program);
+                     $1->label_test = newLabel(program);
+                     $1->label_end = newLabel(program);
+                     switch_stack = addFirst(switch_stack, $1);
+                  }
+                  LPAR IDENTIFIER RPAR 
+                  {
+                     gen_addi_instruction(program, $1->cmp_register, get_symbol_location(program, $4, 0), 0);
+                     gen_bt_instruction(program, $1->label_test, 0);
+                  }
+                  LBRACE switch_block RBRACE
+                  {
+                     assignLabel(program, $1->label_test);
+                     int cmpReg = getNewRegister(program);
+                     t_list* current_case = $1->cases;
+                     while(current_case != NULL) {
+                        t_case_statement *case_data = ((t_case_statement*)LDATA(current_case));
+                        gen_subi_instruction(program, cmpReg, $1->cmp_register, case_data->number);
+                        gen_beq_instruction(program, case_data->case_label, 0);
+                        current_case = current_case->next;
+                     }
+                     if($1->label_default != NULL) {
+                        gen_bt_instruction(program, $1->label_default, 0);
+                     }
+
+                     assignLabel(program, $1->label_end);
+                     switch_stack = removeFirst(switch_stack);
+                  }
+;
+
+switch_block : case_statements
+            {
+               gen_bt_instruction(program, ((t_switch_statement *) LDATA(switch_stack))->label_end, 0);
+            }
+            | case_statements default_statement
+            {
+               gen_bt_instruction(program, ((t_switch_statement *) LDATA(switch_stack))->label_end, 0);
+            }
+;
+
+case_statements : case_statements case_statement
+               | case_statement
+;
+
+case_statement : CASE 
+               { 
+                  $1 = create_case_statement(); 
+                  $1->case_label = assignNewLabel(program);
+               } 
+               NUMBER 
+               {
+                  $1->number = $3;
+                  t_switch_statement *current_switch = ((t_switch_statement *) LDATA(switch_stack));
+                  current_switch->cases = addLast(current_switch->cases, $1);
+               }
+               COLON code_block
+;
+
+default_statement : DEFAULT 
+                  {
+                     ((t_switch_statement *) LDATA(switch_stack))->label_default = assignNewLabel(program);
+                  } 
+                  COLON code_block
+;
+
+break_statement : BREAK
+                  {
+                     if (switch_stack == NULL) {
+                        fprintf(stderr, "Unexpected break at line %d", line_num);
+                        abort();
+                     }
+                     gen_bt_instruction(program, ((t_switch_statement *) LDATA(switch_stack))->label_end, 0);
+                  }
 ;
 
 exp: NUMBER      { $$ = create_expression ($1, IMMEDIATE); }

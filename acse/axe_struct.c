@@ -100,6 +100,29 @@ t_while_statement create_while_statement()
    return statement;
 }
 
+t_switch_statement *create_switch_statement() 
+{
+   t_switch_statement *statement = malloc(sizeof(t_switch_statement));
+
+   statement->cases = NULL;
+   statement->cmp_register = 0;
+   statement->label_default = NULL;
+   statement->label_end = NULL;
+   statement->label_test = NULL;
+
+   return statement;
+}
+
+t_case_statement *create_case_statement()
+{
+   t_case_statement *statement = malloc(sizeof(t_case_statement));
+
+   statement->number = 0;
+   statement->case_label = NULL;
+
+   return statement;
+}
+
 t_axe_label * alloc_label(int value)
 {
    t_axe_label *result;
