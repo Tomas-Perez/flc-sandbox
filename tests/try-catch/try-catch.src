@@ -1,0 +1,33 @@
+int a, i, j;
+read(a);
+try {
+    if (a == 1)
+        throw 10;
+    write(1);
+    if (a == 2)
+        throw 20;
+    write(2);
+} catch (a + 10) {
+    write(10);
+} catch (20) {
+    write(20);
+};
+
+try {
+    throw 44;
+};
+
+i = 0;
+j = 1;
+
+try {
+    throw 1;
+} catch (1) {
+    write(1);
+} catch (1) {
+    write(2);
+} catch (i + 1) {
+    write(3);
+} catch (j) {
+    write(4);
+};

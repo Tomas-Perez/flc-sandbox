@@ -89,6 +89,8 @@ t_reg_allocator *RA;       /* Register allocator. It implements the "Linear scan
 
 t_io_infos *file_infos;    /* input and output files used by the compiler */
 
+t_axe_label *current_try_start_catch = NULL;
+int throw_reg;
 
 extern int yylex(void);
 extern int yyerror(const char* errmsg);
@@ -124,7 +126,10 @@ extern int yyerror(const char* errmsg);
 %token RETURN
 %token READ
 %token WRITE
+%token THROW
 
+%token <label> CATCH
+%token <label> TRY
 %token <label> DO
 %token <while_stmt> WHILE
 %token <label> IF
@@ -253,6 +258,8 @@ control_statement : if_statement         { /* does nothing */ }
             | while_statement            { /* does nothing */ }
             | do_while_statement SEMI    { /* does nothing */ }
             | return_statement SEMI      { /* does nothing */ }
+            | try_catch_statement SEMI   { /* does nothing */ }
+            | throw_statement SEMI       { /* does nothing */ }
 ;
 
 read_write_statement : read_statement  { /* does nothing */ }
@@ -409,6 +416,63 @@ do_while_statement  : DO
                            /* if `exp' returns TRUE, jump to the label $1 */
                            gen_bne_instruction (program, $1, 0);
                      }
+;
+
+try_catch_statement : TRY 
+                     {
+                        if (current_try_start_catch != NULL) {
+                           fprintf(stderr, "Nesting of try-catch is not allowed\n");
+                           abort();
+                        }
+                        current_try_start_catch = newLabel(program);
+                        throw_reg = getNewRegister(program);
+                        $1 = newLabel(program);
+                     }
+                     code_block 
+                     {
+                        gen_bt_instruction(program, $1, 0);
+                        assignLabel(program, current_try_start_catch);
+                     }
+                     catch_statements
+                     {
+                        assignLabel(program, $1);
+                        current_try_start_catch = NULL;
+                     }
+;
+
+catch_statements : catch_statements catch_statement
+                 |
+;
+
+catch_statement : CATCH 
+               {
+                  $1 = newLabel(program);
+               }
+               LPAR exp RPAR 
+               {
+                  int cmp_reg = getNewRegister(program);
+                  if ($4.expression_type == IMMEDIATE) {
+                     gen_subi_instruction(program, cmp_reg, throw_reg, $4.value);
+                  } else {
+                     gen_sub_instruction(program, cmp_reg, throw_reg, $4.value, CG_DIRECT_ALL);
+                  }
+                  gen_bne_instruction(program, $1, 0);
+               }
+               code_block 
+               {
+                  assignLabel(program, $1);
+               }
+;
+
+throw_statement : THROW exp
+                  {
+                     if ($2.expression_type == IMMEDIATE) {
+                        gen_addi_instruction(program, throw_reg, REG_0, $2.value);
+                     } else {
+                        gen_add_instruction(program, throw_reg, REG_0, $2.value, CG_DIRECT_ALL);
+                     }
+                     gen_bt_instruction(program, current_try_start_catch, 0);
+                  }
 ;
 
 return_statement : RETURN
