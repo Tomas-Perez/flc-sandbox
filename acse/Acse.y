@@ -534,6 +534,7 @@ switch_statement : SWITCH
                      $1->label_test = newLabel(program);
                      $1->label_end = newLabel(program);
                      switch_stack = addFirst(switch_stack, $1);
+                     breakable_stack = addFirst(breakable_stack, $1->label_end);
                   }
                   LPAR IDENTIFIER RPAR 
                   {
@@ -549,6 +550,7 @@ switch_statement : SWITCH
                         t_case_statement *case_data = ((t_case_statement*)LDATA(current_case));
                         gen_subi_instruction(program, cmpReg, $1->cmp_register, case_data->number);
                         gen_beq_instruction(program, case_data->case_label, 0);
+                        free(case_data);
                         current_case = current_case->next;
                      }
                      if($1->label_default != NULL) {
@@ -557,6 +559,9 @@ switch_statement : SWITCH
 
                      assignLabel(program, $1->label_end);
                      switch_stack = removeFirst(switch_stack);
+                     breakable_stack = removeFirst(breakable_stack);
+                     freeList($1->cases);
+                     free($1);
                   }
 ;
 
@@ -593,16 +598,6 @@ default_statement : DEFAULT
                      ((t_switch_statement *) LDATA(switch_stack))->label_default = assignNewLabel(program);
                   } 
                   COLON code_block
-;
-
-break_statement : BREAK
-                  {
-                     if (switch_stack == NULL) {
-                        fprintf(stderr, "Unexpected break at line %d", line_num);
-                        abort();
-                     }
-                     gen_bt_instruction(program, ((t_switch_statement *) LDATA(switch_stack))->label_end, 0);
-                  }
 ;
 
 exp: NUMBER      { $$ = create_expression ($1, IMMEDIATE); }
