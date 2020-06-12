@@ -1,0 +1,12 @@
+int a = 0;
+int b;
+iterate x from a+1 {
+    write(x);
+} to 3+2;
+
+write(9999);
+
+iterate y from a+1 {
+    write(y);
+    y = 6;
+} to 3+2;

@@ -100,6 +100,17 @@ t_while_statement create_while_statement()
    return statement;
 }
 
+t_iterate_statement create_iterate_statement()
+{
+   t_iterate_statement statement;
+
+   statement.label_end = NULL;
+   statement.label_loop = NULL;
+   statement.loop_var_reg = -1;
+
+   return statement;
+}
+
 t_axe_label * alloc_label(int value)
 {
    t_axe_label *result;

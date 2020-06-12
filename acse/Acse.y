@@ -27,6 +27,7 @@
 #include "axe_utils.h"
 #include "axe_array.h"
 #include "axe_cflow_graph.h"
+#include "axe_constants.h"
 #include "cflow_constants.h"
 #include "axe_transform.h"
 #include "axe_reg_alloc.h"
@@ -108,6 +109,7 @@ extern int yyerror(const char* errmsg);
    t_list *list;
    t_axe_label *label;
    t_while_statement while_stmt;
+   t_iterate_statement iterate_stmt;
 } 
 /*=========================================================================
                                TOKENS 
@@ -124,7 +126,10 @@ extern int yyerror(const char* errmsg);
 %token RETURN
 %token READ
 %token WRITE
+%token FROM
+%token TO
 
+%token <iterate_stmt> ITERATE
 %token <label> DO
 %token <while_stmt> WHILE
 %token <label> IF
@@ -253,6 +258,7 @@ control_statement : if_statement         { /* does nothing */ }
             | while_statement            { /* does nothing */ }
             | do_while_statement SEMI    { /* does nothing */ }
             | return_statement SEMI      { /* does nothing */ }
+            | iterate_statement SEMI     { /* does nothing */ }
 ;
 
 read_write_statement : read_statement  { /* does nothing */ }
@@ -455,6 +461,45 @@ write_statement : WRITE LPAR exp RPAR
                /* write to standard output an integer value */
                gen_write_instruction (program, location);
             }
+;
+
+iterate_statement : ITERATE 
+                  {
+                     $1 = create_iterate_statement();
+                     $1.label_end = newLabel(program);
+                  }
+                  IDENTIFIER 
+                  {
+                     t_axe_declaration *loop_var = alloc_declaration($3, 0, 0, 0);
+                     if (loop_var == NULL)
+                        notifyError(AXE_OUT_OF_MEMORY);
+                     t_list *var_list = addLast(NULL, loop_var);
+                     set_new_variables(program, INTEGER_TYPE, var_list);
+                  } 
+                  FROM exp 
+                  {
+                     $1.loop_var_reg = get_symbol_location(program, $3, 0);
+
+                     if ($6.expression_type == IMMEDIATE)
+                        gen_move_immediate(program, $1.loop_var_reg, $6.value);
+                     else
+                        gen_add_instruction(program,
+                                          $1.loop_var_reg,
+                                          REG_0,
+                                          $6.value,
+                                          CG_DIRECT_ALL);
+                     
+                     $1.label_loop = assignNewLabel(program);
+                  }
+                  code_block TO exp
+                  {
+                     t_axe_expression loop_exp = create_expression($1.loop_var_reg, REGISTER);
+                     handle_binary_comparison(program, loop_exp, $10, _LT_);
+                     gen_beq_instruction(program, $1.label_end, 0);
+                     gen_addi_instruction(program, $1.loop_var_reg, $1.loop_var_reg, 1);
+                     gen_bt_instruction(program, $1.label_loop, 0);
+                     assignLabel(program, $1.label_end);
+                  }
 ;
 
 exp: NUMBER      { $$ = create_expression ($1, IMMEDIATE); }
