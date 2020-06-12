@@ -154,6 +154,7 @@ extern int yyerror(const char* errmsg);
 %left MINUS PLUS
 %left MUL_OP DIV_OP
 %right NOT
+%left SCALAR_PROD
 
 /*=========================================================================
                          BISON GRAMMAR
@@ -570,6 +571,38 @@ exp: NUMBER      { $$ = create_expression ($1, IMMEDIATE); }
                                  (program, exp_r0, $2, SUB);
                         }
                      }
+   | IDENTIFIER SCALAR_PROD IDENTIFIER 
+   {
+      t_axe_variable *left = getVariable(program, $1);
+      t_axe_variable *right = getVariable(program, $3);
+      if (!left->isArray || !right->isArray) {
+         fprintf(stderr, "Scalar product between non arrays at line %d", line_num);
+         abort();
+      }
+      if(left->arraySize != right->arraySize) {
+         fprintf(stderr, "Cannot perform scalar product between array %s of size %d and %s of size %d at line %d", 
+            $1, left->arraySize, 
+            $3, right->arraySize, 
+            line_num);
+         abort();
+      }
+      int res_reg = gen_load_immediate(program, 0);
+      for(int i = 0; i < left->arraySize; i++) {
+         int leftELocation = loadArrayElement(program, $1, create_expression(i, IMMEDIATE));
+         int rightELocation = loadArrayElement(program, $3, create_expression(i, IMMEDIATE));
+         int mult_res = handle_bin_numeric_op(
+            program, 
+            create_expression(leftELocation, REGISTER), 
+            create_expression(rightELocation, REGISTER), 
+            MUL
+         ).value;
+         gen_add_instruction(program, res_reg, res_reg, mult_res, CG_DIRECT_ALL);
+      }
+      $$ = create_expression(res_reg, REGISTER);
+
+      free($1);
+      free($3);
+   }
 ;
 
 %%

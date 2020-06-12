@@ -1,0 +1,15 @@
+int u[3],v[3],a;
+v[0]=1; v[1]=2; v[2]=-1;
+u[0]=8; u[1]=1; u[2]=2;
+
+write(0);
+
+a = v@v + 1; /* a == 9 after this statement */
+
+if (u@v) {
+    write(1); /* this statement is executed */
+} else {
+    write(0);
+}
+
+write(a);
