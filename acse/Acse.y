@@ -89,6 +89,7 @@ t_reg_allocator *RA;       /* Register allocator. It implements the "Linear scan
 
 t_io_infos *file_infos;    /* input and output files used by the compiler */
 
+t_stack_info stack_info = {-1, -1, -1};
 
 extern int yylex(void);
 extern int yyerror(const char* errmsg);
@@ -124,6 +125,7 @@ extern int yyerror(const char* errmsg);
 %token RETURN
 %token READ
 %token WRITE
+%token PUSH INTO POP FROM
 
 %token <label> DO
 %token <while_stmt> WHILE
@@ -154,6 +156,7 @@ extern int yyerror(const char* errmsg);
 %left MINUS PLUS
 %left MUL_OP DIV_OP
 %right NOT
+%left IS_EMPTY IS_FULL
 
 /*=========================================================================
                          BISON GRAMMAR
@@ -244,6 +247,8 @@ statements  : statements statement       { /* does nothing */ }
 /* A statement can be either an assignment statement or a control statement
  * or a read/write statement or a semicolon */
 statement   : assign_statement SEMI      { /* does nothing */ }
+            | push_statement SEMI        { /* does nothing */ }
+            | pop_statement SEMI        { /* does nothing */ }
             | control_statement          { /* does nothing */ }
             | read_write_statement SEMI  { /* does nothing */ }
             | SEMI            { gen_nop_instruction(program); }
@@ -307,6 +312,48 @@ assign_statement : IDENTIFIER LSQUARE exp RSQUARE ASSIGN exp
                /* free the memory associated with the IDENTIFIER */
                free($1);
             }
+;
+
+push_statement : PUSH exp INTO IDENTIFIER
+               {
+                  int location = get_symbol_location(program, $4, 0);
+                  if (stack_info.location == -1) {
+                     t_axe_variable *stack_var = getVariable(program, $4);
+                     if(!stack_var->isArray) {
+                        fprintf(stderr, "Line %d stack must be an array\n", line_num);
+                        abort();
+                     } else {
+                        stack_info.location = location;
+                        stack_info.size = stack_var->arraySize;
+                        stack_info.current_index_reg = gen_load_immediate(program, 0);
+                     }
+                  }
+                  else if (location != stack_info.location) {
+                     fprintf(stderr, "Line %d only one stack is allowed\n", line_num);
+                     abort();
+                  }
+                  printf("Stack current index reg %d\n", stack_info.current_index_reg);
+                  storeArrayElement(program, $4, create_expression(stack_info.current_index_reg, REGISTER), $2);
+                  gen_addi_instruction(program, stack_info.current_index_reg, stack_info.current_index_reg, 1);
+                  free($4);
+               }
+;
+
+pop_statement : POP IDENTIFIER FROM IDENTIFIER
+               {
+                  int stack_location = get_symbol_location(program, $4, 0);
+                  if (stack_info.location == -1 || stack_location != stack_info.location) {
+                     fprintf(stderr, "Line %d stack %s not declared, push a value to an array to declare it as stack\n", line_num, $4);
+                     abort();
+                  }
+                  int result_location = get_symbol_location(program, $2, 0);
+                  gen_subi_instruction(program, stack_info.current_index_reg, stack_info.current_index_reg, 1);
+                  int top_value = loadArrayElement(program, $4, create_expression(stack_info.current_index_reg, REGISTER));
+                  gen_add_instruction(program, result_location, REG_0, top_value, CG_DIRECT_ALL);
+
+                  free($2);
+                  free($4);
+               }
 ;
             
 if_statement   : if_stmt
@@ -552,6 +599,26 @@ exp: NUMBER      { $$ = create_expression ($1, IMMEDIATE); }
    | exp ANDAND exp  {  $$ = handle_bin_numeric_op(program, $1, $3, ANDL); }
    | exp OROR exp    {  $$ = handle_bin_numeric_op(program, $1, $3, ORL); }
    | LPAR exp RPAR   { $$ = $2; }
+   | IS_EMPTY IDENTIFIER 
+   { 
+      int stack_location = get_symbol_location(program, $2, 0);
+      if (stack_info.location == -1 || stack_location != stack_info.location) {
+         fprintf(stderr, "Line %d stack %s not declared, push a value to an array to declare it as stack\n", line_num, $2);
+         abort();
+      }
+      $$ = handle_binary_comparison(program, create_expression(stack_info.current_index_reg, REGISTER), create_expression(0, IMMEDIATE), _EQ_);
+      free($2);
+   }
+   | IS_FULL IDENTIFIER 
+   { 
+      int stack_location = get_symbol_location(program, $2, 0);
+      if (stack_info.location == -1 || stack_location != stack_info.location) {
+         fprintf(stderr, "Line %d stack %s not declared, push a value to an array to declare it as stack\n", line_num, $2);
+         abort();
+      }
+      $$ = handle_binary_comparison(program, create_expression(stack_info.current_index_reg, REGISTER), create_expression(stack_info.size, IMMEDIATE), _EQ_);
+      free($2);
+   }
    | MINUS exp       {
                         if ($2.expression_type == IMMEDIATE)
                         {

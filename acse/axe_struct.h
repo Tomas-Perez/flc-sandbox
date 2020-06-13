@@ -114,6 +114,15 @@ typedef struct t_while_statement
                                     * that follows the while construct */
 } t_while_statement;
 
+typedef struct t_stack_info
+{
+   int location;
+
+   int size;
+
+   int current_index_reg;
+} t_stack_info;
+
 /* create a label */
 extern t_axe_label * alloc_label(int value);
 
