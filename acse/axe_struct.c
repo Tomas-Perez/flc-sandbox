@@ -100,6 +100,20 @@ t_while_statement create_while_statement()
    return statement;
 }
 
+t_foreach_statement create_foreach_statement()
+{
+   t_foreach_statement statement;
+   statement.end_label = NULL;
+   statement.every_label = NULL;
+   statement.foreach_label = NULL;
+   statement.loop_label = NULL;
+   statement.offset_reg = -1;
+   statement.test_label = NULL;
+   statement.arraySize = -1;
+
+   return statement;
+}
+
 t_axe_label * alloc_label(int value)
 {
    t_axe_label *result;

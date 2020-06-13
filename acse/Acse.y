@@ -108,6 +108,7 @@ extern int yyerror(const char* errmsg);
    t_list *list;
    t_axe_label *label;
    t_while_statement while_stmt;
+   t_foreach_statement foreach_stmt;
 } 
 /*=========================================================================
                                TOKENS 
@@ -124,7 +125,9 @@ extern int yyerror(const char* errmsg);
 %token RETURN
 %token READ
 %token WRITE
+%token IN EVERY
 
+%token <foreach_stmt> FOREACH
 %token <label> DO
 %token <while_stmt> WHILE
 %token <label> IF
@@ -252,6 +255,7 @@ statement   : assign_statement SEMI      { /* does nothing */ }
 control_statement : if_statement         { /* does nothing */ }
             | while_statement            { /* does nothing */ }
             | do_while_statement SEMI    { /* does nothing */ }
+            | foreach_statement SEMI     { /* does nothing */ }
             | return_statement SEMI      { /* does nothing */ }
 ;
 
@@ -351,6 +355,69 @@ if_stmt  :  IF
                      gen_beq_instruction (program, $1, 0);
                }
                code_block { $$ = $1; }
+;
+
+foreach_statement : FOREACH IDENTIFIER IN IDENTIFIER 
+                  {
+                     $1.every_label = newLabel(program);
+                     $1.end_label = newLabel(program);
+                     $1.test_label = newLabel(program);
+                     t_axe_variable *elem_var = getVariable(program, $2); 
+                     t_axe_variable *array = getVariable(program, $4);
+                     if(elem_var->isArray) {
+                        fprintf(stderr, "%s is not a scalar\n", $2);
+                        abort();
+                     }
+                     if (!array->isArray) {
+                        fprintf(stderr, "%s is not an array\n", $4);
+                        abort();
+                     }
+                     $1.arraySize = array->arraySize;
+                     $1.offset_reg = gen_load_immediate(program, $1.arraySize);
+                     $1.loop_label = assignNewLabel(program);
+                     gen_andb_instruction(program, $1.offset_reg, $1.offset_reg, $1.offset_reg, CG_DIRECT_ALL);
+                     gen_beq_instruction(program, $1.end_label, 0);
+                     $1.index = handle_bin_numeric_op(
+                        program, 
+                        create_expression($1.arraySize, IMMEDIATE), 
+                        create_expression($1.offset_reg, REGISTER), 
+                        SUB
+                     );
+                     int array_e_reg = loadArrayElement(program, $4, $1.index);
+                     int elem_location = get_symbol_location(program, $2, 0);
+                     gen_add_instruction(program, elem_location, REG_0, array_e_reg, CG_DIRECT_ALL);
+                     gen_bt_instruction(program, $1.test_label, 0);
+                     $1.foreach_label = assignNewLabel(program);
+                  }
+                  code_block 
+                  {
+                     gen_bt_instruction(program, $1.loop_label, 0);
+                     assignLabel(program, $1.every_label);
+                  }
+                  EVERY exp DO code_block
+                  {
+                     gen_bt_instruction(program, $1.loop_label, 0);
+                     assignLabel(program, $1.test_label);
+                     if ($9.expression_type != IMMEDIATE) {
+                        fprintf(stderr, "Expression in every ... do must be known at compile time\n");
+                        abort();
+                     }
+                     if ($9.value > $1.arraySize) {
+                        fprintf(stderr, "'Every' block must be able to execute at least once\n");
+                        abort();
+                     }
+                     gen_subi_instruction(program, $1.offset_reg, $1.offset_reg, 1);
+                     gen_andb_instruction(program, $1.index.value, $1.index.value, $1.index.value, CG_DIRECT_ALL);
+                     gen_beq_instruction(program, $1.foreach_label, 0);
+                     t_axe_expression tmp = handle_bin_numeric_op(program, $1.index, $9, DIV);
+                     tmp = handle_bin_numeric_op(program, tmp, $9, MUL);
+                     handle_bin_numeric_op(program, tmp, $1.index, SUB);
+                     gen_beq_instruction(program, $1.every_label, 0);
+                     gen_bt_instruction(program, $1.foreach_label, 0);
+                     assignLabel(program, $1.end_label);
+                     free($2);
+                     free($4);
+                  }
 ;
 
 while_statement  : WHILE

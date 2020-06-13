@@ -1,0 +1,19 @@
+int elem, v[5], a, i;
+
+while (i < 5) {
+    v[i] = i;
+    i = i+1;
+}
+
+a = 0;
+i = 0;
+foreach elem in v {
+    a = a + elem;
+} every a do {
+    write(a);
+    a = elem;
+};  
+
+// 1, 5
+
+write(a); //4
