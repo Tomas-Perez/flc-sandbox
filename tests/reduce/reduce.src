@@ -1,0 +1,13 @@
+int v[2], a;
+a = 0;
+v[0] = 3;
+v[1] = 2;
+a=red(v);
+write(a); //5
+while( red(v) ){
+    v[0] = v[0]-1;
+    v[1] = v[0];
+}
+write(v[0]); // 0
+v[1] = -2;
+write(red(v)); // -2

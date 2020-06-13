@@ -124,6 +124,7 @@ extern int yyerror(const char* errmsg);
 %token RETURN
 %token READ
 %token WRITE
+%token REDUCE
 
 %token <label> DO
 %token <while_stmt> WHILE
@@ -552,6 +553,30 @@ exp: NUMBER      { $$ = create_expression ($1, IMMEDIATE); }
    | exp ANDAND exp  {  $$ = handle_bin_numeric_op(program, $1, $3, ANDL); }
    | exp OROR exp    {  $$ = handle_bin_numeric_op(program, $1, $3, ORL); }
    | LPAR exp RPAR   { $$ = $2; }
+   | REDUCE LPAR IDENTIFIER RPAR
+   {
+      t_axe_variable *to_reduce = getVariable(program, $3);
+      if (!to_reduce->isArray) {
+         yyerror("Cannot reduce a scalar\n");
+      }
+      int res_reg = gen_load_immediate(program, 0);
+      int offset_reg = gen_load_immediate(program, to_reduce->arraySize);
+      t_axe_label *loop_label = assignNewLabel(program);
+      t_axe_expression index = handle_bin_numeric_op(
+         program, 
+         create_expression(to_reduce->arraySize, IMMEDIATE), 
+         create_expression(offset_reg, REGISTER), 
+         SUB
+      );
+      int current_element = loadArrayElement(program, $3, index);
+      gen_add_instruction(program, res_reg, res_reg, current_element, CG_DIRECT_ALL);
+      gen_subi_instruction(program, offset_reg, offset_reg, 1);
+      gen_andb_instruction(program, offset_reg, offset_reg, offset_reg, CG_DIRECT_ALL);
+      gen_bne_instruction(program, loop_label, 0);
+
+      $$ = create_expression(res_reg, REGISTER);
+      free($3);
+   }
    | MINUS exp       {
                         if ($2.expression_type == IMMEDIATE)
                         {
