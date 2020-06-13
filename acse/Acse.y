@@ -557,7 +557,8 @@ exp: NUMBER      { $$ = create_expression ($1, IMMEDIATE); }
    {
       t_axe_variable *to_reduce = getVariable(program, $3);
       if (!to_reduce->isArray) {
-         yyerror("Cannot reduce a scalar\n");
+         fprintf(stderr, "Line %d cannot reduce a scalar\n", line_num);
+         abort();
       }
       int res_reg = gen_load_immediate(program, 0);
       int offset_reg = gen_load_immediate(program, to_reduce->arraySize);

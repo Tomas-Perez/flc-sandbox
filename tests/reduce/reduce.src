@@ -10,4 +10,5 @@ while( red(v) ){
 }
 write(v[0]); // 0
 v[1] = -2;
-write(red(v)); // -2
+
+write(red(v)); 
