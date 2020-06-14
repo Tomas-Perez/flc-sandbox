@@ -89,6 +89,7 @@ t_reg_allocator *RA;       /* Register allocator. It implements the "Linear scan
 
 t_io_infos *file_infos;    /* input and output files used by the compiler */
 
+t_list *cond_stack = NULL;
 
 extern int yylex(void);
 extern int yyerror(const char* errmsg);
@@ -124,7 +125,10 @@ extern int yyerror(const char* errmsg);
 %token RETURN
 %token READ
 %token WRITE
+%token DEFAULT
 
+%token <label> COND
+%token <label> CASE
 %token <label> DO
 %token <while_stmt> WHILE
 %token <label> IF
@@ -252,7 +256,47 @@ statement   : assign_statement SEMI      { /* does nothing */ }
 control_statement : if_statement         { /* does nothing */ }
             | while_statement            { /* does nothing */ }
             | do_while_statement SEMI    { /* does nothing */ }
+            | cond_statement             { /* does nothing */ }
             | return_statement SEMI      { /* does nothing */ }
+;
+
+cond_statement : COND 
+               {
+                  $1 = newLabel(program);
+                  cond_stack = addFirst(cond_stack, $1);
+               }
+               LBRACE case_statements RBRACE
+               {
+                  cond_stack = removeFirst(cond_stack);
+                  assignLabel(program, $1);
+               }
+;
+
+case_statements : cases default_case | cases
+
+cases : cases case
+      | case
+;
+
+case : CASE exp COLON 
+      {
+         $1 = newLabel(program);
+         if($2.expression_type == IMMEDIATE) {
+            gen_load_immediate(program, $2.value);
+         } else {
+            gen_andb_instruction(program, $2.value, $2.value, $2.value, CG_DIRECT_ALL);
+         }
+         gen_beq_instruction(program, $1, 0);
+      }
+      statements
+      {
+         gen_bt_instruction(program, (t_axe_label *) LDATA(cond_stack), 0);
+         assignLabel(program, $1);
+      }
+      
+;
+
+default_case : DEFAULT COLON statements
 ;
 
 read_write_statement : read_statement  { /* does nothing */ }

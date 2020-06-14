@@ -1,0 +1,16 @@
+int x, y;
+
+x = 1;
+y = -1;
+
+cond{
+    case x: cond {
+        case x: write(1);
+    }
+    case y>0: y=y+x; x=1;
+    case x+y: x=0; y=0;
+    default: y=0;
+}
+
+write(x);
+write(y);
