@@ -89,6 +89,7 @@ t_reg_allocator *RA;       /* Register allocator. It implements the "Linear scan
 
 t_io_infos *file_infos;    /* input and output files used by the compiler */
 
+t_list *switch_stack = NULL;
 
 extern int yylex(void);
 extern int yyerror(const char* errmsg);
@@ -108,6 +109,7 @@ extern int yyerror(const char* errmsg);
    t_list *list;
    t_axe_label *label;
    t_while_statement while_stmt;
+   t_switch_statement *switch_stmt;
 } 
 /*=========================================================================
                                TOKENS 
@@ -124,7 +126,11 @@ extern int yyerror(const char* errmsg);
 %token RETURN
 %token READ
 %token WRITE
+%token BREAK
 
+%token <switch_stmt> SWITCH
+%token <label> CASE
+%token <label> DEFAULT
 %token <label> DO
 %token <while_stmt> WHILE
 %token <label> IF
@@ -252,6 +258,8 @@ statement   : assign_statement SEMI      { /* does nothing */ }
 control_statement : if_statement         { /* does nothing */ }
             | while_statement            { /* does nothing */ }
             | do_while_statement SEMI    { /* does nothing */ }
+            | switch_statement           { /* does nothing */ }
+            | break_statement SEMI       { /* does nothing */ }
             | return_statement SEMI      { /* does nothing */ }
 ;
 
@@ -437,7 +445,68 @@ read_statement : READ LPAR IDENTIFIER RPAR
                free($3);
             }
 ;
-            
+
+switch_statement : SWITCH LPAR IDENTIFIER RPAR
+               {
+                  $1 = create_switch_statement();
+                  $1->label_end = newLabel(program);
+                  $1->id_location = get_symbol_location(program, $3, 0);
+                  $1->matched_reg = gen_load_immediate(program, 0);
+                  switch_stack = addFirst(switch_stack, $1);
+               }
+               LBRACE case_statements RBRACE
+               {
+                  assignLabel(program, $1->label_end);
+                  switch_stack = removeFirst(switch_stack);
+                  free($3);
+               }
+;
+
+case_statements : case_list default_statement | case_list
+;
+
+case_list : case_list case_statement | case_statement
+;
+
+case_statement : CASE NUMBER COLON 
+               {
+                  $1 = newLabel(program);
+                  t_switch_statement *curr = (t_switch_statement *) LDATA(switch_stack);
+                  gen_andb_instruction(program, curr->matched_reg, curr->matched_reg, curr->matched_reg, CG_DIRECT_ALL);
+                  gen_bne_instruction(program, $1, 0);
+                  handle_binary_comparison(program, create_expression($2, IMMEDIATE), create_expression(curr->id_location, REGISTER), _EQ_);
+                  gen_beq_instruction(program, $1, 0);
+               }
+               code_block
+               {
+                  assignLabel(program, $1);
+               }
+;
+
+default_statement : DEFAULT COLON 
+                  {
+                     $1 = newLabel(program);
+                     t_switch_statement *curr = (t_switch_statement *) LDATA(switch_stack);
+                     gen_andb_instruction(program, curr->matched_reg, curr->matched_reg, curr->matched_reg, CG_DIRECT_ALL);
+                     gen_bne_instruction(program, $1, 0);
+                  }
+                  code_block
+                  {
+                     assignLabel(program, $1);
+                  }
+;  
+
+break_statement : BREAK 
+               {
+                  if(switch_stack==NULL) {
+                     exit(-1);
+                  } else {
+                     t_switch_statement *curr = (t_switch_statement *) LDATA(switch_stack);
+                     gen_bt_instruction(program, curr->label_end, 0);
+                  }
+               }
+;            
+
 write_statement : WRITE LPAR exp RPAR 
             {
    

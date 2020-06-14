@@ -100,6 +100,17 @@ t_while_statement create_while_statement()
    return statement;
 }
 
+t_switch_statement *create_switch_statement()
+{
+   t_switch_statement *statement = malloc(sizeof(t_switch_statement));
+   
+   statement->id_location = -1;
+   statement->matched_reg = -1;
+   statement->label_end = NULL;
+
+   return statement;
+}
+
 t_axe_label * alloc_label(int value)
 {
    t_axe_label *result;
