@@ -246,7 +246,78 @@ statements  : statements statement       { /* does nothing */ }
 statement   : assign_statement SEMI      { /* does nothing */ }
             | control_statement          { /* does nothing */ }
             | read_write_statement SEMI  { /* does nothing */ }
+            | array_shift SEMI           { /* does nothing */ }
             | SEMI            { gen_nop_instruction(program); }
+;
+
+array_shift : IDENTIFIER SHL_OP exp
+            {
+               t_axe_variable *var = getVariable(program, $1);
+               if (!var->isArray) exit(-1);
+               int shift_amt_loc;
+               if ($3.expression_type == IMMEDIATE) {
+                  shift_amt_loc = gen_load_immediate(program, $3.value);
+               } else {
+                  shift_amt_loc = $3.value;
+               }
+               int size_reg = gen_load_immediate(program, var->arraySize);
+               int index_reg = gen_load_immediate(program, 0);
+               t_axe_label *loop_label = assignNewLabel(program);
+               t_axe_label *label_fill_zero = newLabel(program);
+               t_axe_label *label_after_fill = newLabel(program);
+               t_axe_expression source_val = handle_bin_numeric_op(
+                  program, 
+                  create_expression(index_reg, REGISTER), 
+                  create_expression(shift_amt_loc, REGISTER), 
+                  ADD
+               );
+               handle_binary_comparison(program, source_val, create_expression(size_reg, REGISTER), _GTEQ_);
+               gen_bne_instruction(program, label_fill_zero, 0);
+               int source_location = loadArrayElement(program, $1, source_val);
+               storeArrayElement(program, $1, create_expression(index_reg, REGISTER), create_expression(source_location, REGISTER));
+               gen_bt_instruction(program, label_after_fill, 0);
+               assignLabel(program, label_fill_zero);
+               storeArrayElement(program, $1, create_expression(index_reg, REGISTER), create_expression(0, IMMEDIATE));
+               assignLabel(program, label_after_fill);
+               gen_addi_instruction(program, index_reg, index_reg, 1);
+               handle_binary_comparison(program, create_expression(index_reg, REGISTER), create_expression(size_reg, REGISTER), _LT_);
+               gen_bne_instruction(program, loop_label, 0);
+               free($1);
+            }
+            | IDENTIFIER SHR_OP exp
+            {
+               t_axe_variable *var = getVariable(program, $1);
+               if (!var->isArray) exit(-1);
+               int shift_amt_loc;
+               if ($3.expression_type == IMMEDIATE) {
+                  shift_amt_loc = gen_load_immediate(program, $3.value);
+               } else {
+                  shift_amt_loc = $3.value;
+               }
+               int size_reg = gen_load_immediate(program, var->arraySize);
+               int index_reg = gen_load_immediate(program, var->arraySize - 1);
+               t_axe_label *loop_label = assignNewLabel(program);
+               t_axe_label *label_fill_zero = newLabel(program);
+               t_axe_label *label_after_fill = newLabel(program);
+               t_axe_expression source_val = handle_bin_numeric_op(
+                  program, 
+                  create_expression(index_reg, REGISTER), 
+                  create_expression(shift_amt_loc, REGISTER), 
+                  SUB
+               );
+               handle_binary_comparison(program, source_val, create_expression(0, IMMEDIATE), _LT_);
+               gen_bne_instruction(program, label_fill_zero, 0);
+               int source_location = loadArrayElement(program, $1, source_val);
+               storeArrayElement(program, $1, create_expression(index_reg, REGISTER), create_expression(source_location, REGISTER));
+               gen_bt_instruction(program, label_after_fill, 0);
+               assignLabel(program, label_fill_zero);
+               storeArrayElement(program, $1, create_expression(index_reg, REGISTER), create_expression(0, IMMEDIATE));
+               assignLabel(program, label_after_fill);
+               gen_subi_instruction(program, index_reg, index_reg, 1);
+               handle_binary_comparison(program, create_expression(index_reg, REGISTER), create_expression(0, IMMEDIATE), _GTEQ_);
+               gen_bne_instruction(program, loop_label, 0);
+               free($1);
+            }
 ;
 
 control_statement : if_statement         { /* does nothing */ }
